@@ -13,3 +13,9 @@ Standard `go get`:
 ```
 $ go get github.com/mitchellh/copystructure
 ```
+
+## Usage & Example
+
+For usage and examples see the [Godoc](http://godoc.org/github.com/mitchellh/copystructure).
+
+The `Copy` function has examples associated with it there.
