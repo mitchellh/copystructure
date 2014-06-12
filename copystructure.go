@@ -20,8 +20,6 @@ func Copy(v interface{}) (interface{}, error) {
 type walker struct {
 	Result interface{}
 
-	current reflect.Value
-	mapkey  reflect.Value
 	vals    []reflect.Value
 	cs      []reflect.Value
 }
