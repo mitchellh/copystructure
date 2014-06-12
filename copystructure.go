@@ -23,32 +23,21 @@ type walker struct {
 
 	current reflect.Value
 	mapkey  reflect.Value
-	locs    []reflectwalk.Location
 	vals    []reflect.Value
 	cs      []reflect.Value
 }
 
 func (w *walker) Enter(l reflectwalk.Location) error {
-	// Push the last location so we know the latest of where we are
-	w.locs = append(w.locs, l)
-
 	return nil
 }
 
 func (w *walker) Exit(l reflectwalk.Location) error {
-	// Pop off the last location so we're accurate
-	w.locs = w.locs[:len(w.locs)-1]
-
 	switch l {
 	case reflectwalk.Map:
 		fallthrough
 	case reflectwalk.Slice:
 		// Pop map off our container
 		w.cs = w.cs[:len(w.cs)-1]
-
-		// Pop the container value from the vals
-		w.valPop()
-
 	case reflectwalk.MapValue:
 		// Pop off the key and value
 		mv := w.valPop()
@@ -64,7 +53,6 @@ func (w *walker) Exit(l reflectwalk.Location) error {
 
 	case reflectwalk.WalkLoc:
 		// Clear out the slices for GC
-		w.locs = nil
 		w.vals = nil
 	}
 
