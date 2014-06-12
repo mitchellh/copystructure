@@ -93,13 +93,11 @@ func (w *walker) SliceElem(i int, elem reflect.Value) error {
 
 func (w *walker) valPop() reflect.Value {
 	result := w.vals[len(w.vals)-1]
-	println(fmt.Sprintf("POP: %s", result))
 	w.vals = w.vals[:len(w.vals)-1]
 	return result
 }
 
 func (w *walker) valPush(v reflect.Value) {
-	println(fmt.Sprintf("PUSH: %s", v))
 	w.vals = append(w.vals, v)
 
 	// If we haven't set the result yet, then this is the result since
