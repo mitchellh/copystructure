@@ -5,6 +5,22 @@ import (
 	"testing"
 )
 
+func TestCopy_complex(t *testing.T) {
+	v := map[string]interface{}{
+		"foo": []string{"a", "b"},
+		"bar": "baz",
+	}
+
+	result, err := Copy(v)
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+
+	if !reflect.DeepEqual(result, v) {
+		t.Fatalf("bad: %#v", result)
+	}
+}
+
 func TestCopy_primitive(t *testing.T) {
 	cases := []interface{}{
 		42,
