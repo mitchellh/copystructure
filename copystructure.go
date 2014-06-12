@@ -20,8 +20,8 @@ func Copy(v interface{}) (interface{}, error) {
 type walker struct {
 	Result interface{}
 
-	vals    []reflect.Value
-	cs      []reflect.Value
+	vals []reflect.Value
+	cs   []reflect.Value
 }
 
 func (w *walker) Enter(l reflectwalk.Location) error {
@@ -50,6 +50,7 @@ func (w *walker) Exit(l reflectwalk.Location) error {
 
 	case reflectwalk.WalkLoc:
 		// Clear out the slices for GC
+		w.cs = nil
 		w.vals = nil
 	}
 
