@@ -1,7 +1,6 @@
 package copystructure
 
 import (
-	"fmt"
 	"reflect"
 
 	"github.com/mitchellh/reflectwalk"
