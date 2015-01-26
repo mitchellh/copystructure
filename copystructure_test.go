@@ -39,6 +39,25 @@ func TestCopy_primitive(t *testing.T) {
 	}
 }
 
+func TestCopy_primitivePtr(t *testing.T) {
+	cases := []interface{}{
+		42,
+		"foo",
+		1.2,
+	}
+
+	for _, tc := range cases {
+		result, err := Copy(&tc)
+		if err != nil {
+			t.Fatalf("err: %s", err)
+		}
+
+		if !reflect.DeepEqual(result, &tc) {
+			t.Fatalf("bad: %#v", result)
+		}
+	}
+}
+
 func TestCopy_map(t *testing.T) {
 	v := map[string]interface{}{
 		"bar": "baz",

@@ -42,6 +42,8 @@ func (w *walker) Exit(l reflectwalk.Location) error {
 		mk := w.valPop()
 		m := w.cs[len(w.cs)-1]
 		m.SetMapIndex(mk, mv)
+	case reflectwalk.Primitive:
+		w.replacePointerMaybe()
 	case reflectwalk.SliceElem:
 		// Pop off the value and the index and set it on the slice
 		v := w.valPop()
@@ -49,12 +51,7 @@ func (w *walker) Exit(l reflectwalk.Location) error {
 		s := w.cs[len(w.cs)-1]
 		s.Index(i).Set(v)
 	case reflectwalk.Struct:
-		// Determine the last pointer value. If it is NOT a pointer, then
-		// we need to push that onto the stack.
-		p := w.ps[len(w.ps)-1]
-		if !p {
-			w.valPush(reflect.Indirect(w.valPop()))
-		}
+		w.replacePointerMaybe()
 
 		// Remove the struct from the container stack
 		w.cs = w.cs[:len(w.cs)-1]
@@ -97,7 +94,9 @@ func (w *walker) PointerExit(bool) error {
 }
 
 func (w *walker) Primitive(v reflect.Value) error {
-	w.valPush(v)
+	newV := reflect.New(v.Type())
+	reflect.Indirect(newV).Set(v)
+	w.valPush(newV)
 	return nil
 }
 
@@ -132,6 +131,10 @@ func (w *walker) StructField(f reflect.StructField, v reflect.Value) error {
 	return nil
 }
 
+func (w *walker) pointerPeek() bool {
+	return w.ps[len(w.ps)-1]
+}
+
 func (w *walker) valPop() reflect.Value {
 	result := w.vals[len(w.vals)-1]
 	w.vals = w.vals[:len(w.vals)-1]
@@ -153,5 +156,13 @@ func (w *walker) valPush(v reflect.Value) {
 	// it is the first (outermost) value we're seeing.
 	if w.Result == nil {
 		w.Result = v.Interface()
+	}
+}
+
+func (w *walker) replacePointerMaybe() {
+	// Determine the last pointer value. If it is NOT a pointer, then
+	// we need to push that onto the stack.
+	if !w.pointerPeek() {
+		w.valPush(reflect.Indirect(w.valPop()))
 	}
 }
