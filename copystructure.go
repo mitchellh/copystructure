@@ -42,8 +42,6 @@ func (w *walker) Exit(l reflectwalk.Location) error {
 		mk := w.valPop()
 		m := w.cs[len(w.cs)-1]
 		m.SetMapIndex(mk, mv)
-	case reflectwalk.Primitive:
-		w.replacePointerMaybe()
 	case reflectwalk.SliceElem:
 		// Pop off the value and the index and set it on the slice
 		v := w.valPop()
@@ -97,6 +95,7 @@ func (w *walker) Primitive(v reflect.Value) error {
 	newV := reflect.New(v.Type())
 	reflect.Indirect(newV).Set(v)
 	w.valPush(newV)
+	w.replacePointerMaybe()
 	return nil
 }
 
