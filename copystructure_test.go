@@ -66,3 +66,37 @@ func TestCopy_slice(t *testing.T) {
 		t.Fatalf("bad: %#v", result)
 	}
 }
+
+func TestCopy_struct(t *testing.T) {
+	type test struct {
+		Value string
+	}
+
+	v := test{Value: "foo"}
+
+	result, err := Copy(v)
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+
+	if !reflect.DeepEqual(result, v) {
+		t.Fatalf("bad: %#v", result)
+	}
+}
+
+func TestCopy_structPtr(t *testing.T) {
+	type test struct {
+		Value string
+	}
+
+	v := &test{Value: "foo"}
+
+	result, err := Copy(v)
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+
+	if !reflect.DeepEqual(result, v) {
+		t.Fatalf("bad: %#v", result)
+	}
+}
