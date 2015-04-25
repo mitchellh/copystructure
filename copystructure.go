@@ -17,19 +17,46 @@ func Copy(v interface{}) (interface{}, error) {
 	return w.Result, nil
 }
 
+// CopierFunc is a function that knows how to deep copy a specific type.
+// Register these globally with the Copiers variable.
+type CopierFunc func(interface{}) (interface{}, error)
+
+// Copiers is a map of types that behave specially when they are copied.
+// If a type is found in this map while deep copying, this function
+// will be called to copy it instead of attempting to copy all fields.
+//
+// The key should be the type, obtained using: reflect.TypeOf(value with type).
+//
+// It is unsafe to write to this map after Copies have started. If you
+// are writing to this map while also copying, wrap all modifications to
+// this map as well as to Copy in a mutex.
+var Copiers map[reflect.Type]CopierFunc = make(map[reflect.Type]CopierFunc)
+
 type walker struct {
 	Result interface{}
 
-	vals []reflect.Value
-	cs   []reflect.Value
-	ps   []bool
+	depth       int
+	ignoreDepth int
+	vals        []reflect.Value
+	cs          []reflect.Value
+	ps          []bool
 }
 
 func (w *walker) Enter(l reflectwalk.Location) error {
+	w.depth++
 	return nil
 }
 
 func (w *walker) Exit(l reflectwalk.Location) error {
+	w.depth--
+	if w.ignoreDepth > w.depth {
+		w.ignoreDepth = 0
+	}
+
+	if w.ignoring() {
+		return nil
+	}
+
 	switch l {
 	case reflectwalk.Map:
 		fallthrough
@@ -70,6 +97,10 @@ func (w *walker) Exit(l reflectwalk.Location) error {
 }
 
 func (w *walker) Map(m reflect.Value) error {
+	if w.ignoring() {
+		return nil
+	}
+
 	t := m.Type()
 	newMap := reflect.MakeMap(reflect.MapOf(t.Key(), t.Elem()))
 	w.cs = append(w.cs, newMap)
@@ -82,16 +113,28 @@ func (w *walker) MapElem(m, k, v reflect.Value) error {
 }
 
 func (w *walker) PointerEnter(v bool) error {
+	if w.ignoring() {
+		return nil
+	}
+
 	w.ps = append(w.ps, v)
 	return nil
 }
 
 func (w *walker) PointerExit(bool) error {
+	if w.ignoring() {
+		return nil
+	}
+
 	w.ps = w.ps[:len(w.ps)-1]
 	return nil
 }
 
 func (w *walker) Primitive(v reflect.Value) error {
+	if w.ignoring() {
+		return nil
+	}
+
 	newV := reflect.New(v.Type())
 	reflect.Indirect(newV).Set(v)
 	w.valPush(newV)
@@ -100,6 +143,10 @@ func (w *walker) Primitive(v reflect.Value) error {
 }
 
 func (w *walker) Slice(s reflect.Value) error {
+	if w.ignoring() {
+		return nil
+	}
+
 	newS := reflect.MakeSlice(s.Type(), s.Len(), s.Cap())
 	w.cs = append(w.cs, newS)
 	w.valPush(newS)
@@ -107,6 +154,10 @@ func (w *walker) Slice(s reflect.Value) error {
 }
 
 func (w *walker) SliceElem(i int, elem reflect.Value) error {
+	if w.ignoring() {
+		return nil
+	}
+
 	// We don't write the slice here because elem might still be
 	// arbitrarily complex. Just record the index and continue on.
 	w.valPush(reflect.ValueOf(i))
@@ -115,19 +166,50 @@ func (w *walker) SliceElem(i int, elem reflect.Value) error {
 }
 
 func (w *walker) Struct(s reflect.Value) error {
-	// Make a copy of this struct and remove the pointer since we're
-	// not usually dealing with the pointer at this stage.
-	v := reflect.New(s.Type())
+	if w.ignoring() {
+		return nil
+	}
+
+	var v reflect.Value
+	if c, ok := Copiers[s.Type()]; ok {
+		// We have a Copier for this struct, so we use that copier to
+		// get the copy, and we ignore anything deeper than this.
+		w.ignoreDepth = w.depth
+
+		dup, err := c(s.Interface())
+		if err != nil {
+			return err
+		}
+
+		v = reflect.ValueOf(dup)
+	} else {
+		// No copier, we copy ourselves and allow reflectwalk to guide
+		// us deeper into the structure for copying.
+		v = reflect.New(s.Type())
+	}
+
+	// Push the value onto the value stack for setting the struct field,
+	// and add the struct itself to the containers stack in case we walk
+	// deeper so that its own fields can be modified.
 	w.valPush(v)
 	w.cs = append(w.cs, v)
+
 	return nil
 }
 
 func (w *walker) StructField(f reflect.StructField, v reflect.Value) error {
+	if w.ignoring() {
+		return nil
+	}
+
 	// Push the field onto the stack, we'll handle it when we exit
 	// the struct field in Exit...
 	w.valPush(reflect.ValueOf(f))
 	return nil
+}
+
+func (w *walker) ignoring() bool {
+	return w.ignoreDepth > 0 && w.depth >= w.ignoreDepth
 }
 
 func (w *walker) pointerPeek() bool {
