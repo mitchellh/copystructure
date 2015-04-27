@@ -131,8 +131,10 @@ func TestCopy_structNil(t *testing.T) {
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
-	if result != nil {
+	if v, ok := result.(*test); !ok {
 		t.Fatalf("bad: %#v", result)
+	} else if v != nil {
+		t.Fatalf("bad: %#v", v)
 	}
 }
 

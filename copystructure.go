@@ -14,7 +14,15 @@ func Copy(v interface{}) (interface{}, error) {
 		return nil, err
 	}
 
-	return w.Result, nil
+	// Get the result. If the result is nil, then we want to turn it
+	// into a typed nil if we can.
+	result := w.Result
+	if result == nil {
+		val := reflect.ValueOf(v)
+		result = reflect.Indirect(reflect.New(val.Type())).Interface()
+	}
+
+	return result, nil
 }
 
 // CopierFunc is a function that knows how to deep copy a specific type.
