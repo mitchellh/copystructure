@@ -101,8 +101,18 @@ func (w *walker) Map(m reflect.Value) error {
 		return nil
 	}
 
+	// Get the type for the map
 	t := m.Type()
-	newMap := reflect.MakeMap(reflect.MapOf(t.Key(), t.Elem()))
+	mapType := reflect.MapOf(t.Key(), t.Elem())
+
+	// Create the map. If the map itself is nil, then just make a nil map
+	var newMap reflect.Value
+	if m.IsNil() {
+		newMap = reflect.Indirect(reflect.New(mapType))
+	} else {
+		newMap = reflect.MakeMap(reflect.MapOf(t.Key(), t.Elem()))
+	}
+
 	w.cs = append(w.cs, newMap)
 	w.valPush(newMap)
 	return nil
@@ -147,7 +157,13 @@ func (w *walker) Slice(s reflect.Value) error {
 		return nil
 	}
 
-	newS := reflect.MakeSlice(s.Type(), s.Len(), s.Cap())
+	var newS reflect.Value
+	if s.IsNil() {
+		newS = reflect.Indirect(reflect.New(s.Type()))
+	} else {
+		newS = reflect.MakeSlice(s.Type(), s.Len(), s.Cap())
+	}
+
 	w.cs = append(w.cs, newS)
 	w.valPush(newS)
 	return nil
