@@ -84,9 +84,11 @@ func (w *walker) Exit(l reflectwalk.Location) error {
 		// Pop off the value and the field
 		v := w.valPop()
 		f := w.valPop().Interface().(reflect.StructField)
-		s := w.cs[len(w.cs)-1]
-		sf := reflect.Indirect(s).FieldByName(f.Name)
-		sf.Set(v)
+		if v.IsValid() {
+			s := w.cs[len(w.cs)-1]
+			sf := reflect.Indirect(s).FieldByName(f.Name)
+			sf.Set(v)
+		}
 	case reflectwalk.WalkLoc:
 		// Clear out the slices for GC
 		w.cs = nil
@@ -145,8 +147,12 @@ func (w *walker) Primitive(v reflect.Value) error {
 		return nil
 	}
 
-	newV := reflect.New(v.Type())
-	reflect.Indirect(newV).Set(v)
+	var newV reflect.Value
+	if v.IsValid() {
+		newV = reflect.New(v.Type())
+		reflect.Indirect(newV).Set(v)
+	}
+
 	w.valPush(newV)
 	w.replacePointerMaybe()
 	return nil

@@ -121,6 +121,25 @@ func TestCopy_structPtr(t *testing.T) {
 	}
 }
 
+func TestCopy_structNested(t *testing.T) {
+	type TestInner struct{}
+
+	type Test struct {
+		Test *TestInner
+	}
+
+	v := Test{}
+
+	result, err := Copy(v)
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+
+	if !reflect.DeepEqual(result, v) {
+		t.Fatalf("bad: %#v", result)
+	}
+}
+
 func TestCopy_time(t *testing.T) {
 	type test struct {
 		Value time.Time
