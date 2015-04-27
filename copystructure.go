@@ -257,7 +257,7 @@ func (w *walker) valPush(v reflect.Value) {
 
 	// If we haven't set the result yet, then this is the result since
 	// it is the first (outermost) value we're seeing.
-	if w.Result == nil {
+	if w.Result == nil && v.IsValid() {
 		w.Result = v.Interface()
 	}
 }
