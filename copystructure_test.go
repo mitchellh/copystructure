@@ -157,6 +157,25 @@ func TestCopy_structNested(t *testing.T) {
 	}
 }
 
+func TestCopy_structUnexported(t *testing.T) {
+	type test struct {
+		Value string
+
+		private string
+	}
+
+	v := test{Value: "foo"}
+
+	result, err := Copy(v)
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+
+	if !reflect.DeepEqual(result, v) {
+		t.Fatalf("bad: %#v", result)
+	}
+}
+
 func TestCopy_time(t *testing.T) {
 	type test struct {
 		Value time.Time

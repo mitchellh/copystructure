@@ -155,8 +155,10 @@ func (w *walker) Primitive(v reflect.Value) error {
 		return nil
 	}
 
+	// IsValid verifies the v is non-zero and CanInterface verifies
+	// that we're allowed to read this value (unexported fields).
 	var newV reflect.Value
-	if v.IsValid() {
+	if v.IsValid() && v.CanInterface() {
 		newV = reflect.New(v.Type())
 		reflect.Indirect(newV).Set(v)
 	}
