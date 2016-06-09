@@ -192,3 +192,27 @@ func TestCopy_time(t *testing.T) {
 		t.Fatalf("bad: %#v", result)
 	}
 }
+
+func TestCopy_aliased(t *testing.T) {
+	type (
+		Int   int
+		Str   string
+		Map   map[Int]interface{}
+		Slice []Str
+	)
+
+	v := Map{
+		1: Map{10: 20},
+		2: Map(nil),
+		3: Slice{"a", "b"},
+	}
+
+	result, err := Copy(v)
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+
+	if !reflect.DeepEqual(result, v) {
+		t.Fatalf("bad: %#v", result)
+	}
+}
