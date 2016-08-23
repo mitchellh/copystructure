@@ -2,6 +2,7 @@ package copystructure
 
 import (
 	"reflect"
+	"sync"
 
 	"github.com/mitchellh/reflectwalk"
 )
@@ -48,14 +49,27 @@ type walker struct {
 	vals        []reflect.Value
 	cs          []reflect.Value
 	ps          []bool
+	locks       []sync.Locker
 }
 
 func (w *walker) Enter(l reflectwalk.Location) error {
 	w.depth++
+
+	// ensure we have enough elements to index via w.depth
+	for w.depth >= len(w.locks) {
+		w.locks = append(w.locks, nil)
+	}
+
 	return nil
 }
 
 func (w *walker) Exit(l reflectwalk.Location) error {
+	locker := w.locks[w.depth]
+	w.locks[w.depth] = nil
+	if locker != nil {
+		defer locker.Unlock()
+	}
+
 	w.depth--
 	if w.ignoreDepth > w.depth {
 		w.ignoreDepth = 0
@@ -124,6 +138,7 @@ func (w *walker) Map(m reflect.Value) error {
 	if w.ignoring() {
 		return nil
 	}
+	w.lock(m)
 
 	// Create the map. If the map itself is nil, then just make a nil map
 	var newMap reflect.Value
@@ -164,6 +179,7 @@ func (w *walker) Primitive(v reflect.Value) error {
 	if w.ignoring() {
 		return nil
 	}
+	w.lock(v)
 
 	// IsValid verifies the v is non-zero and CanInterface verifies
 	// that we're allowed to read this value (unexported fields).
@@ -182,6 +198,7 @@ func (w *walker) Slice(s reflect.Value) error {
 	if w.ignoring() {
 		return nil
 	}
+	w.lock(s)
 
 	var newS reflect.Value
 	if s.IsNil() {
@@ -211,6 +228,7 @@ func (w *walker) Struct(s reflect.Value) error {
 	if w.ignoring() {
 		return nil
 	}
+	w.lock(s)
 
 	var v reflect.Value
 	if c, ok := Copiers[s.Type()]; ok {
@@ -288,4 +306,40 @@ func (w *walker) replacePointerMaybe() {
 	if !w.pointerPeek() {
 		w.valPush(reflect.Indirect(w.valPop()))
 	}
+}
+
+// if this value is a Locker, lock it and add it to the locks slice
+func (w *walker) lock(v reflect.Value) {
+	var locker sync.Locker
+	var ok bool
+
+	if !v.IsValid() {
+		return
+	}
+
+	if !v.CanInterface() {
+		return
+	}
+
+	// first check if our value is a locker
+	locker, ok = v.Interface().(sync.Locker)
+
+	// the value itself isn't a locker, so check the method on a pointer too
+	if !ok && v.CanAddr() {
+		locker, ok = v.Addr().Interface().(sync.Locker)
+	}
+
+	// still no callable locker
+	if !ok {
+		return
+	}
+
+	// don't lock a mutex directly
+	switch locker.(type) {
+	case *sync.Mutex, *sync.RWMutex:
+		return
+	}
+
+	locker.Lock()
+	w.locks[w.depth] = locker
 }
