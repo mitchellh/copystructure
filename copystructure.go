@@ -9,12 +9,12 @@ import (
 
 // Copy returns a deep copy of v.
 func Copy(v interface{}) (interface{}, error) {
-	return Opts{}.Copy(v)
+	return Config{}.Copy(v)
 }
 
 // LockedCopy returns a deep copy of v, taking locks as needed during the walk.
 func LockedCopy(v interface{}) (interface{}, error) {
-	return Opts{Lock: true}.Copy(v)
+	return Config{Lock: true}.Copy(v)
 }
 
 // CopierFunc is a function that knows how to deep copy a specific type.
@@ -32,7 +32,7 @@ type CopierFunc func(interface{}) (interface{}, error)
 // this map as well as to Copy in a mutex.
 var Copiers map[reflect.Type]CopierFunc = make(map[reflect.Type]CopierFunc)
 
-type Opts struct {
+type Config struct {
 	// Lock any types that are a sync.Locker and are not a mutex while copying.
 	// If there is an RLocker method, use that to get the sync.Locker.
 	Lock bool
@@ -42,14 +42,14 @@ type Opts struct {
 	Copiers map[reflect.Type]CopierFunc
 }
 
-func (o Opts) Copy(v interface{}) (interface{}, error) {
+func (c Config) Copy(v interface{}) (interface{}, error) {
 	w := new(walker)
-	if o.Lock {
+	if c.Lock {
 		w.useLocks = true
 	}
 
-	if o.Copiers == nil {
-		o.Copiers = Copiers
+	if c.Copiers == nil {
+		c.Copiers = Copiers
 	}
 
 	err := reflectwalk.Walk(v, w)
