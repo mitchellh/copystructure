@@ -9,21 +9,12 @@ import (
 
 // Copy returns a deep copy of v.
 func Copy(v interface{}) (interface{}, error) {
-	w := new(walker)
-	err := reflectwalk.Walk(v, w)
-	if err != nil {
-		return nil, err
-	}
+	return Opts{}.Copy(v)
+}
 
-	// Get the result. If the result is nil, then we want to turn it
-	// into a typed nil if we can.
-	result := w.Result
-	if result == nil {
-		val := reflect.ValueOf(v)
-		result = reflect.Indirect(reflect.New(val.Type())).Interface()
-	}
-
-	return result, nil
+// LockedCopy returns a deep copy of v, taking locks as needed during the walk.
+func LockedCopy(v interface{}) (interface{}, error) {
+	return Opts{Lock: true}.Copy(v)
 }
 
 // CopierFunc is a function that knows how to deep copy a specific type.
@@ -41,6 +32,42 @@ type CopierFunc func(interface{}) (interface{}, error)
 // this map as well as to Copy in a mutex.
 var Copiers map[reflect.Type]CopierFunc = make(map[reflect.Type]CopierFunc)
 
+type Opts struct {
+	// Lock any types that are a sync.Locker and are not a mutex while copying.
+	// If there is an RLocker method, use that to get the sync.Locker.
+	Lock bool
+
+	// Copiers is a map of types associated with a CopierFunc. Use the global
+	// Copiers map if this is nil.
+	Copiers map[reflect.Type]CopierFunc
+}
+
+func (o Opts) Copy(v interface{}) (interface{}, error) {
+	w := new(walker)
+	if o.Lock {
+		w.useLocks = true
+	}
+
+	if o.Copiers == nil {
+		o.Copiers = Copiers
+	}
+
+	err := reflectwalk.Walk(v, w)
+	if err != nil {
+		return nil, err
+	}
+
+	// Get the result. If the result is nil, then we want to turn it
+	// into a typed nil if we can.
+	result := w.Result
+	if result == nil {
+		val := reflect.ValueOf(v)
+		result = reflect.Indirect(reflect.New(val.Type())).Interface()
+	}
+
+	return result, nil
+}
+
 type walker struct {
 	Result interface{}
 
@@ -49,7 +76,11 @@ type walker struct {
 	vals        []reflect.Value
 	cs          []reflect.Value
 	ps          []bool
-	locks       []sync.Locker
+
+	// any locks we've taken, indexed by depth
+	locks []sync.Locker
+	// take locks while walking the structure
+	useLocks bool
 }
 
 func (w *walker) Enter(l reflectwalk.Location) error {
@@ -310,27 +341,46 @@ func (w *walker) replacePointerMaybe() {
 
 // if this value is a Locker, lock it and add it to the locks slice
 func (w *walker) lock(v reflect.Value) {
+	if !w.useLocks {
+		return
+	}
+
+	if !v.IsValid() || !v.CanInterface() {
+		return
+	}
+
+	type rlocker interface {
+		RLocker() sync.Locker
+	}
+
 	var locker sync.Locker
-	var ok bool
 
-	if !v.IsValid() {
-		return
+	// first check if we can get a locker from the value
+	switch l := v.Interface().(type) {
+	case rlocker:
+		// don't lock a mutex directly
+		if _, ok := l.(*sync.RWMutex); !ok {
+			locker = l.RLocker()
+		}
+	case sync.Locker:
+		locker = l
 	}
-
-	if !v.CanInterface() {
-		return
-	}
-
-	// first check if our value is a locker
-	locker, ok = v.Interface().(sync.Locker)
 
 	// the value itself isn't a locker, so check the method on a pointer too
-	if !ok && v.CanAddr() {
-		locker, ok = v.Addr().Interface().(sync.Locker)
+	if locker == nil && v.CanAddr() {
+		switch l := v.Addr().Interface().(type) {
+		case rlocker:
+			// don't lock a mutex directly
+			if _, ok := l.(*sync.RWMutex); !ok {
+				locker = l.RLocker()
+			}
+		case sync.Locker:
+			locker = l
+		}
 	}
 
 	// still no callable locker
-	if !ok {
+	if locker == nil {
 		return
 	}
 

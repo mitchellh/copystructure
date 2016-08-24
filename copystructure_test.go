@@ -245,7 +245,7 @@ type EmbeddedLocker struct {
 	Map map[int]int
 }
 
-func TestCopy_EmbeddedLocker(t *testing.T) {
+func TestCopy_embeddedLocker(t *testing.T) {
 	v := &EmbeddedLocker{
 		Map: map[int]int{42: 111},
 	}
@@ -258,7 +258,7 @@ func TestCopy_EmbeddedLocker(t *testing.T) {
 	copied := make(chan bool)
 
 	go func() {
-		result, err = Copy(v)
+		result, err = LockedCopy(v)
 		close(copied)
 	}()
 
@@ -306,12 +306,12 @@ func TestCopy_lockRace(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			Copy(v)
+			LockedCopy(v)
 		}()
 	}
 
 	wg.Wait()
-	result, err := Copy(v)
+	result, err := LockedCopy(v)
 
 	// test that the mutex is in the correct state
 	result.(*EmbeddedLocker).Lock()
@@ -330,10 +330,11 @@ type LockedField struct {
 	String string
 	Locker *EmbeddedLocker
 	// this should not get locked or have its state copied
-	Mutex sync.Mutex
+	Mutex    sync.Mutex
+	nilMutex *sync.Mutex
 }
 
-func TestCopy_LockedField(t *testing.T) {
+func TestCopy_lockedField(t *testing.T) {
 	v := &LockedField{
 		String: "orig",
 		Locker: &EmbeddedLocker{
@@ -351,7 +352,7 @@ func TestCopy_LockedField(t *testing.T) {
 	copied := make(chan bool)
 
 	go func() {
-		result, err = Copy(v)
+		result, err = LockedCopy(v)
 		close(copied)
 	}()
 
@@ -391,7 +392,7 @@ var mapLock sync.Mutex
 func (m lockedMap) Lock()   { mapLock.Lock() }
 func (m lockedMap) Unlock() { mapLock.Unlock() }
 
-func TestCopy_LockedMap(t *testing.T) {
+func TestCopy_lockedMap(t *testing.T) {
 	v := lockedMap{1: 2}
 	v.Lock()
 
@@ -401,7 +402,7 @@ func TestCopy_LockedMap(t *testing.T) {
 	copied := make(chan bool)
 
 	go func() {
-		result, err = Copy(v)
+		result, err = LockedCopy(v)
 		close(copied)
 	}()
 
@@ -425,6 +426,81 @@ func TestCopy_LockedMap(t *testing.T) {
 
 	if !reflect.DeepEqual(result, v) {
 		t.Fatalf("bad: %#v", result)
+	}
+}
+
+// Use an RLock if available
+type RLocker struct {
+	sync.RWMutex
+	Map map[int]int
+}
+
+func TestCopy_rLocker(t *testing.T) {
+	v := &RLocker{
+		Map: map[int]int{1: 2},
+	}
+	v.Lock()
+
+	var result interface{}
+	var err error
+
+	copied := make(chan bool)
+
+	go func() {
+		result, err = LockedCopy(v)
+		close(copied)
+	}()
+
+	// pause slightly to make sure copying is blocked
+	select {
+	case <-copied:
+		t.Fatal("copy completed while locked!")
+	case <-time.After(100 * time.Millisecond):
+		v.Unlock()
+	}
+
+	<-copied
+
+	// test that the mutex is in the correct state
+	vCopy := result.(*RLocker)
+	vCopy.Lock()
+	vCopy.Unlock()
+	vCopy.RLock()
+	vCopy.RUnlock()
+
+	// now make sure we can copy during an RLock
+	v.RLock()
+	result, err = LockedCopy(v)
+	if err != nil {
+		t.Fatal(err)
+	}
+	v.RUnlock()
+
+	vCopy = result.(*RLocker)
+	vCopy.Lock()
+	vCopy.Unlock()
+	vCopy.RLock()
+	vCopy.RUnlock()
+
+	if !reflect.DeepEqual(result, v) {
+		t.Fatalf("bad: %#v", result)
+	}
+}
+
+// Test that we don't panic when encountering nil Lockers
+func TestCopy_missingLockedField(t *testing.T) {
+	v := &LockedField{
+		String: "orig",
+	}
+
+	result, err := LockedCopy(v)
+
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+
+	if !reflect.DeepEqual(result, v) {
+		t.Fatalf("expected:\n%#v\nbad:\n%#v\n", v, result)
 	}
 }
 
