@@ -80,9 +80,14 @@ func (w *walker) Exit(l reflectwalk.Location) error {
 	case reflectwalk.SliceElem:
 		// Pop off the value and the index and set it on the slice
 		v := w.valPop()
-		i := w.valPop().Interface().(int)
-		s := w.cs[len(w.cs)-1]
-		s.Index(i).Set(v)
+		if v.IsValid() {
+			i := w.valPop().Interface().(int)
+			s := w.cs[len(w.cs)-1]
+			se := s.Index(i)
+			if se.CanSet() {
+				se.Set(v)
+			}
+		}
 	case reflectwalk.Struct:
 		w.replacePointerMaybe()
 
