@@ -12,11 +12,6 @@ func Copy(v interface{}) (interface{}, error) {
 	return Config{}.Copy(v)
 }
 
-// LockedCopy returns a deep copy of v, taking locks as needed during the walk.
-func LockedCopy(v interface{}) (interface{}, error) {
-	return Config{Lock: true}.Copy(v)
-}
-
 // CopierFunc is a function that knows how to deep copy a specific type.
 // Register these globally with the Copiers variable.
 type CopierFunc func(interface{}) (interface{}, error)
