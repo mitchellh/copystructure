@@ -76,6 +76,13 @@ func (w *walker) Exit(l reflectwalk.Location) error {
 		mv := w.valPop()
 		mk := w.valPop()
 		m := w.cs[len(w.cs)-1]
+
+		// If mv is the zero value, SetMapIndex deletes the key form the map,
+		// or in this case never adds it. We need to create a properly typed
+		// zero value so that this key can be set.
+		if !mv.IsValid() {
+			mv = reflect.Zero(m.Type().Elem())
+		}
 		m.SetMapIndex(mk, mv)
 	case reflectwalk.SliceElem:
 		// Pop off the value and the index and set it on the slice
