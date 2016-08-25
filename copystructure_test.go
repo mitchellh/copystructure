@@ -238,3 +238,16 @@ func TestCopy_aliased(t *testing.T) {
 		t.Fatalf("bad: %#v", result)
 	}
 }
+
+func TestCopy_panicSliceWithNil(t *testing.T) {
+	v := [](*int){nil}
+
+	result, err := Copy(v)
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+
+	if !reflect.DeepEqual(result, v) {
+		t.Fatalf("bad: %#v", result)
+	}
+}
