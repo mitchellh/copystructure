@@ -350,19 +350,20 @@ func (w *walker) lock(v reflect.Value) {
 
 	var locker sync.Locker
 
-	// first check if we can get a locker from the value
-	switch l := v.Interface().(type) {
-	case rlocker:
-		// don't lock a mutex directly
-		if _, ok := l.(*sync.RWMutex); !ok {
-			locker = l.RLocker()
+	// We can't call Interface() on a value directly, since that requires
+	// a copy. This is OK, since the pointer to a value which is a sync.Locker
+	// is also a sync.Locker.
+	if v.Kind() == reflect.Ptr {
+		switch l := v.Interface().(type) {
+		case rlocker:
+			// don't lock a mutex directly
+			if _, ok := l.(*sync.RWMutex); !ok {
+				locker = l.RLocker()
+			}
+		case sync.Locker:
+			locker = l
 		}
-	case sync.Locker:
-		locker = l
-	}
-
-	// the value itself isn't a locker, so check the method on a pointer too
-	if locker == nil && v.CanAddr() {
+	} else if v.CanAddr() {
 		switch l := v.Addr().Interface().(type) {
 		case rlocker:
 			// don't lock a mutex directly

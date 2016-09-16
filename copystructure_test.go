@@ -402,7 +402,7 @@ func TestCopy_lockedMap(t *testing.T) {
 	copied := make(chan bool)
 
 	go func() {
-		result, err = Config{Lock: true}.Copy(v)
+		result, err = Config{Lock: true}.Copy(&v)
 		close(copied)
 	}()
 
