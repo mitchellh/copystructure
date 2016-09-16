@@ -1,6 +1,7 @@
 package copystructure
 
 import (
+	"errors"
 	"reflect"
 	"sync"
 
@@ -27,6 +28,8 @@ type CopierFunc func(interface{}) (interface{}, error)
 // this map as well as to Copy in a mutex.
 var Copiers map[reflect.Type]CopierFunc = make(map[reflect.Type]CopierFunc)
 
+var errPointerRequired = errors.New("Copy argument must be a pointer when Lock is true")
+
 type Config struct {
 	// Lock any types that are a sync.Locker and are not a mutex while copying.
 	// If there is an RLocker method, use that to get the sync.Locker.
@@ -38,6 +41,10 @@ type Config struct {
 }
 
 func (c Config) Copy(v interface{}) (interface{}, error) {
+	if c.Lock && reflect.ValueOf(v).Kind() != reflect.Ptr {
+		return nil, errPointerRequired
+	}
+
 	w := new(walker)
 	if c.Lock {
 		w.useLocks = true
