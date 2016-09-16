@@ -402,7 +402,7 @@ func TestCopy_lockedMap(t *testing.T) {
 	copied := make(chan bool)
 
 	go func() {
-		result, err = Config{Lock: true}.Copy(v)
+		result, err = Config{Lock: true}.Copy(&v)
 		close(copied)
 	}()
 
@@ -527,5 +527,23 @@ func TestCopy_mapWithNil(t *testing.T) {
 
 	if !reflect.DeepEqual(result, v) {
 		t.Fatalf("expected:\n%#v\ngot:\n%#v", v, result)
+	}
+}
+
+// While this is safe to lock and copy directly, copystructure requires a
+// pointer to reflect the value safely.
+func TestCopy_valueWithLockPointer(t *testing.T) {
+	v := struct {
+		*sync.Mutex
+		X int
+	}{
+		Mutex: &sync.Mutex{},
+		X:     3,
+	}
+
+	_, err := Config{Lock: true}.Copy(v)
+
+	if err != errPointerRequired {
+		t.Fatalf("expected errPointerRequired, got: %v", err)
 	}
 }
