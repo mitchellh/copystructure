@@ -547,3 +547,45 @@ func TestCopy_valueWithLockPointer(t *testing.T) {
 		t.Fatalf("expected errPointerRequired, got: %v", err)
 	}
 }
+
+func TestCopy_mapWithPointers(t *testing.T) {
+	type T struct {
+		S string
+	}
+	v := map[string]interface{}{
+		"a": &T{S: "hello"},
+	}
+
+	result, err := Copy(v)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !reflect.DeepEqual(v, result) {
+		t.Fatal(result)
+	}
+}
+
+func TestCopy_structWithMapWithPointers(t *testing.T) {
+	type T struct {
+		S string
+		M map[string]interface{}
+	}
+	v := &T{
+		S: "a",
+		M: map[string]interface{}{
+			"b": &T{
+				S: "b",
+			},
+		},
+	}
+
+	result, err := Copy(v)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !reflect.DeepEqual(v, result) {
+		t.Fatal(result)
+	}
+}
