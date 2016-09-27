@@ -209,6 +209,40 @@ func TestCopy_structUnexportedMap(t *testing.T) {
 	}
 }
 
+// This is testing an unexported field containing a slice of pointers, which
+// was a crashing case found in Terraform.
+func TestCopy_structUnexportedPtrMap(t *testing.T) {
+	type Foo interface{}
+
+	type Sub struct {
+		List []Foo
+	}
+
+	type test struct {
+		Value string
+
+		private *Sub
+	}
+
+	v := test{
+		Value: "foo",
+		private: &Sub{
+			List: []Foo{&Sub{}},
+		},
+	}
+
+	result, err := Copy(v)
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+
+	// private should not be copied
+	v.private = nil
+	if !reflect.DeepEqual(result, v) {
+		t.Fatalf("bad:\n\n%#v\n\n%#v", result, v)
+	}
+}
+
 func TestCopy_nestedStructUnexported(t *testing.T) {
 	type subTest struct {
 		mine string
