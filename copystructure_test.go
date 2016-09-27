@@ -177,6 +177,38 @@ func TestCopy_structUnexported(t *testing.T) {
 	}
 }
 
+func TestCopy_structUnexportedMap(t *testing.T) {
+	type Sub struct {
+		Foo map[string]interface{}
+	}
+
+	type test struct {
+		Value string
+
+		private Sub
+	}
+
+	v := test{
+		Value: "foo",
+		private: Sub{
+			Foo: map[string]interface{}{
+				"yo": 42,
+			},
+		},
+	}
+
+	result, err := Copy(v)
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+
+	// private should not be copied
+	v.private = Sub{}
+	if !reflect.DeepEqual(result, v) {
+		t.Fatalf("bad:\n\n%#v\n\n%#v", result, v)
+	}
+}
+
 func TestCopy_nestedStructUnexported(t *testing.T) {
 	type subTest struct {
 		mine string
