@@ -42,20 +42,23 @@ func TestCopy_primitive(t *testing.T) {
 }
 
 func TestCopy_primitivePtr(t *testing.T) {
+	i := 42
+	s := "foo"
+	f := 1.2
 	cases := []interface{}{
-		42,
-		"foo",
-		1.2,
+		&i,
+		&s,
+		&f,
 	}
 
-	for _, tc := range cases {
+	for i, tc := range cases {
 		result, err := Copy(&tc)
 		if err != nil {
 			t.Fatalf("err: %s", err)
 		}
 
-		if !reflect.DeepEqual(result, &tc) {
-			t.Fatalf("bad: %#v", result)
+		if !reflect.DeepEqual(result, tc) {
+			t.Fatalf("%d exptected: %#v\nbad: %#v", i, tc, result)
 		}
 	}
 }
