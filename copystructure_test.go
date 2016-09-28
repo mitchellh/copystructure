@@ -570,6 +570,24 @@ func TestCopy_missingLockedField(t *testing.T) {
 	}
 }
 
+type PointerLocker struct {
+	Mu sync.Mutex
+}
+
+func (p *PointerLocker) Lock()   { p.Mu.Lock() }
+func (p *PointerLocker) Unlock() { p.Mu.Unlock() }
+
+func TestCopy_pointerLockerNil(t *testing.T) {
+	v := struct {
+		P *PointerLocker
+	}{}
+
+	_, err := Config{Lock: true}.Copy(&v)
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+}
+
 func TestCopy_sliceWithNil(t *testing.T) {
 	v := [](*int){nil}
 
