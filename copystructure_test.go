@@ -628,7 +628,7 @@ func TestCopy_mapWithPointers(t *testing.T) {
 	}
 
 	if !reflect.DeepEqual(v, result) {
-		t.Fatal(result)
+		t.Fatalf("%#v", result)
 	}
 }
 
