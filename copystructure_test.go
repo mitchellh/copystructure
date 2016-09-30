@@ -736,10 +736,6 @@ func TestCopy_structWithPointersAndInterfaces(t *testing.T) {
 	}
 }
 
-/* TODO: failing tests
-
-// This fails by returning an interface{}(**string) rather than an
-// *interface{}(*string)
 func Test_pointerInterfacePointer(t *testing.T) {
 	s := "hi"
 	si := interface{}(&s)
@@ -755,16 +751,22 @@ func Test_pointerInterfacePointer(t *testing.T) {
 	}
 }
 
-// This panics because it tries to assign a **int to an *interface{}, again
-// getting the number of pointer around the interface wrong.
 func Test_pointerInterfacePointer2(t *testing.T) {
 	type T struct {
 		I *interface{}
+		J **fmt.Stringer
 	}
-	i := interface{}(new(int))
+
+	x := 1
+	y := &stringer{}
+
+	i := interface{}(&x)
+	j := fmt.Stringer(y)
+	jp := &j
 
 	v := &T{
 		I: &i,
+		J: &jp,
 	}
 	result, err := Copy(v)
 	if err != nil {
@@ -775,7 +777,6 @@ func Test_pointerInterfacePointer2(t *testing.T) {
 		t.Fatalf("%#v != %#v\n", v, result)
 	}
 }
-*/
 
 // This test catches a bug that happened when unexported fields were
 // first their subsequent fields wouldn't be copied.
