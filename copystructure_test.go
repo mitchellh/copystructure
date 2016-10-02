@@ -1,6 +1,7 @@
 package copystructure
 
 import (
+	"fmt"
 	"reflect"
 	"sync"
 	"testing"
@@ -42,20 +43,23 @@ func TestCopy_primitive(t *testing.T) {
 }
 
 func TestCopy_primitivePtr(t *testing.T) {
+	i := 42
+	s := "foo"
+	f := 1.2
 	cases := []interface{}{
-		42,
-		"foo",
-		1.2,
+		&i,
+		&s,
+		&f,
 	}
 
-	for _, tc := range cases {
-		result, err := Copy(&tc)
+	for i, tc := range cases {
+		result, err := Copy(tc)
 		if err != nil {
 			t.Fatalf("err: %s", err)
 		}
 
-		if !reflect.DeepEqual(result, &tc) {
-			t.Fatalf("bad: %#v", result)
+		if !reflect.DeepEqual(result, tc) {
+			t.Fatalf("%d exptected: %#v\nbad: %#v", i, tc, result)
 		}
 	}
 }
@@ -673,3 +677,102 @@ func TestCopy_structWithMapWithPointers(t *testing.T) {
 		t.Fatal(result)
 	}
 }
+
+type testT struct {
+	N   int
+	Spp **string
+	X   testX
+	Xp  *testX
+	Xpp **testX
+}
+
+type testX struct {
+	Tp  *testT
+	Tpp **testT
+	Ip  *interface{}
+	Ep  *error
+	S   fmt.Stringer
+}
+
+type stringer struct{}
+
+func (s *stringer) String() string {
+	return "test string"
+}
+
+func TestCopy_structWithPointersAndInterfaces(t *testing.T) {
+	// test that we can copy various nested and chained pointers and interfaces
+	s := "val"
+	sp := &s
+	spp := &sp
+	i := interface{}(11)
+
+	tp := &testT{
+		N: 2,
+	}
+
+	xp := &testX{
+		Tp:  tp,
+		Tpp: &tp,
+		Ip:  &i,
+		S:   &stringer{},
+	}
+
+	v := &testT{
+		N:   1,
+		Spp: spp,
+		X:   testX{},
+		Xp:  xp,
+		Xpp: &xp,
+	}
+
+	result, err := Copy(v)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !reflect.DeepEqual(v, result) {
+		t.Fatal(result)
+	}
+}
+
+/* TODO: failing tests
+
+// This fails by returning an interface{}(**string) rather than an
+// *interface{}(*string)
+func Test_pointerInterfacePointer(t *testing.T) {
+	s := "hi"
+	si := interface{}(&s)
+	sip := &si
+
+	result, err := Copy(sip)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !reflect.DeepEqual(sip, result) {
+		t.Fatalf("%#v != %#v\n", sip, result)
+	}
+}
+
+// This panics because it tries to assign a **int to an *interface{}, again
+// getting the number of pointer around the interface wrong.
+func Test_pointerInterfacePointer2(t *testing.T) {
+	type T struct {
+		I *interface{}
+	}
+	i := interface{}(new(int))
+
+	v := &T{
+		I: &i,
+	}
+	result, err := Copy(v)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !reflect.DeepEqual(v, result) {
+		t.Fatalf("%#v != %#v\n", v, result)
+	}
+}
+*/
