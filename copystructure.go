@@ -312,8 +312,7 @@ func (w *walker) StructField(f reflect.StructField, v reflect.Value) error {
 	// If PkgPath is non-empty, this is a private (unexported) field.
 	// We do not set this unexported since the Go runtime doesn't allow us.
 	if f.PkgPath != "" {
-		w.ignore()
-		return nil
+		return reflectwalk.SkipEntry
 	}
 
 	// Push the field onto the stack, we'll handle it when we exit

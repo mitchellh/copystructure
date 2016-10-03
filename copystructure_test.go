@@ -776,3 +776,31 @@ func Test_pointerInterfacePointer2(t *testing.T) {
 	}
 }
 */
+
+// This test catches a bug that happened when unexported fields were
+// first their subsequent fields wouldn't be copied.
+func TestCopy_unexportedFieldFirst(t *testing.T) {
+	type P struct {
+		mu       sync.Mutex
+		Old, New string
+	}
+
+	type T struct {
+		M map[string]*P
+	}
+
+	v := &T{
+		M: map[string]*P{
+			"a": &P{Old: "", New: "2"},
+		},
+	}
+
+	result, err := Copy(v)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !reflect.DeepEqual(v, result) {
+		t.Fatalf("\n%#v\n\n%#v", v, result)
+	}
+}
