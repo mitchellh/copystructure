@@ -28,6 +28,18 @@ type CopierFunc func(interface{}) (interface{}, error)
 // this map as well as to Copy in a mutex.
 var Copiers map[reflect.Type]CopierFunc = make(map[reflect.Type]CopierFunc)
 
+// Must is a helper that wraps a call to a function returning
+// (interface{}, error) and panics if the error is non-nil. It is intended
+// for use in variable initializations and should only be used when a copy
+// error should be a crashing case.
+func Must(v interface{}, err error) interface{} {
+	if err != nil {
+		panic("copy error: " + err.Error())
+	}
+
+	return v
+}
+
 var errPointerRequired = errors.New("Copy argument must be a pointer when Lock is true")
 
 type Config struct {
