@@ -805,3 +805,22 @@ func TestCopy_unexportedFieldFirst(t *testing.T) {
 		t.Fatalf("\n%#v\n\n%#v", v, result)
 	}
 }
+
+func TestCopy_nilPointerInSlice(t *testing.T) {
+	type T struct {
+		Ps []*int
+	}
+
+	v := &T{
+		Ps: []*int{nil},
+	}
+
+	result, err := Copy(v)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !reflect.DeepEqual(v, result) {
+		t.Fatalf("\n%#v\n\n%#v", v, result)
+	}
+}
