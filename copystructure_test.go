@@ -24,6 +24,32 @@ func TestCopy_complex(t *testing.T) {
 	}
 }
 
+func TestCopy_interfacePointer(t *testing.T) {
+	type Nested struct {
+		Field string
+	}
+
+	type Test struct {
+		Value *interface{}
+	}
+
+	ifacePtr := func(v interface{}) *interface{} {
+		return &v
+	}
+
+	v := Test{
+		Value: ifacePtr(Nested{Field: "111"}),
+	}
+	result, err := Copy(v)
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+
+	if !reflect.DeepEqual(result, v) {
+		t.Fatalf("bad: %#v", result)
+	}
+}
+
 func TestCopy_primitive(t *testing.T) {
 	cases := []interface{}{
 		42,
