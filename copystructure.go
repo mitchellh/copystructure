@@ -79,6 +79,15 @@ func (c Config) Copy(v interface{}) (interface{}, error) {
 		result = reflect.Indirect(reflect.New(val.Type())).Interface()
 	}
 
+	// Wrap result with pointer if necessary to match passed argument type
+	if v != nil {
+		targetType := reflect.ValueOf(v).Type()
+		resultValue := reflect.ValueOf(result)
+
+		resultValue = wrapAsPointerIfNecessary(resultValue, targetType)
+		result = resultValue.Interface()
+	}
+
 	return result, nil
 }
 
@@ -199,6 +208,7 @@ func (w *walker) Exit(l reflectwalk.Location) error {
 			sf := reflect.Indirect(s).FieldByName(f.Name)
 
 			if sf.CanSet() {
+				v = wrapAsPointerIfNecessary(v, sf.Type())
 				sf.Set(v)
 			}
 		}
@@ -491,4 +501,33 @@ func (w *walker) lock(v reflect.Value) {
 
 	locker.Lock()
 	w.locks[w.depth] = locker
+}
+
+// counts pointer indirection level - e.g. for type like **[]string returns 2
+func pointersLevel(t reflect.Type) (level uint) {
+	for t.Kind() == reflect.Ptr {
+		level++
+		t = t.Elem()
+	}
+	return level
+}
+
+// wraps given value with additional pointers (e.g. []string -> *[]string) to match
+// pointers level of given target type
+func wrapAsPointerIfNecessary(v reflect.Value, targetType reflect.Type) reflect.Value {
+	if !v.IsValid() {
+		return v
+	}
+
+	currentLevel := pointersLevel(v.Type())
+	targetLevel := pointersLevel(targetType)
+
+	for currentLevel < targetLevel {
+		vPtr := reflect.New(v.Type())
+		vPtr.Elem().Set(v)
+		v = vPtr
+		currentLevel++
+	}
+
+	return v
 }
