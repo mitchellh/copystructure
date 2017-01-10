@@ -118,6 +118,32 @@ func TestCopy_slice(t *testing.T) {
 	}
 }
 
+func TestCopy_pointerToSlice(t *testing.T) {
+	v := &[]string{"bar", "baz"}
+
+	result, err := Copy(v)
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+
+	if !reflect.DeepEqual(result, v) {
+		t.Fatalf("bad: %#v", result)
+	}
+}
+
+func TestCopy_pointerToMap(t *testing.T) {
+	v := &map[string]string{"bar": "baz"}
+
+	result, err := Copy(v)
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+
+	if !reflect.DeepEqual(result, v) {
+		t.Fatalf("bad: %#v", result)
+	}
+}
+
 func TestCopy_struct(t *testing.T) {
 	type test struct {
 		Value string
@@ -177,6 +203,44 @@ func TestCopy_structNested(t *testing.T) {
 	}
 
 	v := Test{}
+
+	result, err := Copy(v)
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+
+	if !reflect.DeepEqual(result, v) {
+		t.Fatalf("bad: %#v", result)
+	}
+}
+
+func TestCopy_structWithPointerToSliceField(t *testing.T) {
+	type Test struct {
+		Value *[]string
+	}
+
+	v := Test{
+		Value: &[]string{"bar", "baz"},
+	}
+
+	result, err := Copy(v)
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+
+	if !reflect.DeepEqual(result, v) {
+		t.Fatalf("bad: %#v", result)
+	}
+}
+
+func TestCopy_structWithPointerToMapField(t *testing.T) {
+	type Test struct {
+		Value *map[string]string
+	}
+
+	v := Test{
+		Value: &map[string]string{"bar": "baz"},
+	}
 
 	result, err := Copy(v)
 	if err != nil {
@@ -513,14 +577,14 @@ func TestCopy_lockedMap(t *testing.T) {
 	<-copied
 
 	// test that the mutex is in the correct state
-	result.(lockedMap).Lock()
-	result.(lockedMap).Unlock()
+	result.(*lockedMap).Lock()
+	result.(*lockedMap).Unlock()
 
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
 
-	if !reflect.DeepEqual(result, v) {
+	if !reflect.DeepEqual(result, &v) {
 		t.Fatalf("bad: %#v", result)
 	}
 }
