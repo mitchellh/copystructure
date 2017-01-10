@@ -105,6 +105,32 @@ func TestCopy_map(t *testing.T) {
 	}
 }
 
+func TestCopy_array(t *testing.T) {
+	v := [2]string{"bar", "baz"}
+
+	result, err := Copy(v)
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+
+	if !reflect.DeepEqual(result, v) {
+		t.Fatalf("bad: %#v", result)
+	}
+}
+
+func TestCopy_pointerToArray(t *testing.T) {
+	v := &[2]string{"bar", "baz"}
+
+	result, err := Copy(v)
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+
+	if !reflect.DeepEqual(result, v) {
+		t.Fatalf("bad: %#v", result)
+	}
+}
+
 func TestCopy_slice(t *testing.T) {
 	v := []string{"bar", "baz"}
 
@@ -188,6 +214,51 @@ func TestCopy_structNested(t *testing.T) {
 	}
 }
 
+func TestCopy_structWithNestedArray(t *testing.T) {
+	type TestInner struct {
+		Value string
+	}
+
+	type Test struct {
+		Value [2]TestInner
+	}
+
+	v := Test{
+		Value: [2]TestInner{
+			{Value: "bar"},
+			{Value: "baz"},
+		},
+	}
+
+	result, err := Copy(v)
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+
+	if !reflect.DeepEqual(result, v) {
+		t.Fatalf("bad: %#v", result)
+	}
+}
+
+func TestCopy_structWithPointerToArrayField(t *testing.T) {
+	type Test struct {
+		Value *[2]string
+	}
+
+	v := Test{
+		Value: &[2]string{"bar", "baz"},
+	}
+
+	result, err := Copy(v)
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+
+	if !reflect.DeepEqual(result, v) {
+		t.Fatalf("bad: %#v", result)
+	}
+}
+
 func TestCopy_structUnexported(t *testing.T) {
 	type test struct {
 		Value string
@@ -224,6 +295,36 @@ func TestCopy_structUnexportedMap(t *testing.T) {
 			Foo: map[string]interface{}{
 				"yo": 42,
 			},
+		},
+	}
+
+	result, err := Copy(v)
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+
+	// private should not be copied
+	v.private = Sub{}
+	if !reflect.DeepEqual(result, v) {
+		t.Fatalf("bad:\n\n%#v\n\n%#v", result, v)
+	}
+}
+
+func TestCopy_structUnexportedArray(t *testing.T) {
+	type Sub struct {
+		Foo [2]string
+	}
+
+	type test struct {
+		Value string
+
+		private Sub
+	}
+
+	v := test{
+		Value: "foo",
+		private: Sub{
+			Foo: [2]string{"bar", "baz"},
 		},
 	}
 
