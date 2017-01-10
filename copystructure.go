@@ -159,6 +159,7 @@ func (w *walker) Exit(l reflectwalk.Location) error {
 	case reflectwalk.Map:
 		fallthrough
 	case reflectwalk.Slice:
+		w.replacePointerMaybe()
 		// Pop map off our container
 		w.cs = w.cs[:len(w.cs)-1]
 	case reflectwalk.MapValue:
@@ -171,16 +172,16 @@ func (w *walker) Exit(l reflectwalk.Location) error {
 		// or in this case never adds it. We need to create a properly typed
 		// zero value so that this key can be set.
 		if !mv.IsValid() {
-			mv = reflect.Zero(m.Type().Elem())
+			mv = reflect.Zero(m.Elem().Type().Elem())
 		}
-		m.SetMapIndex(mk, mv)
+		m.Elem().SetMapIndex(mk, mv)
 	case reflectwalk.SliceElem:
 		// Pop off the value and the index and set it on the slice
 		v := w.valPop()
 		i := w.valPop().Interface().(int)
 		if v.IsValid() {
 			s := w.cs[len(w.cs)-1]
-			se := s.Index(i)
+			se := s.Elem().Index(i)
 			if se.CanSet() {
 				se.Set(v)
 			}
@@ -220,9 +221,9 @@ func (w *walker) Map(m reflect.Value) error {
 	// Create the map. If the map itself is nil, then just make a nil map
 	var newMap reflect.Value
 	if m.IsNil() {
-		newMap = reflect.Indirect(reflect.New(m.Type()))
+		newMap = reflect.New(m.Type())
 	} else {
-		newMap = reflect.MakeMap(m.Type())
+		newMap = wrapPtr(reflect.MakeMap(m.Type()))
 	}
 
 	w.cs = append(w.cs, newMap)
@@ -287,9 +288,9 @@ func (w *walker) Slice(s reflect.Value) error {
 
 	var newS reflect.Value
 	if s.IsNil() {
-		newS = reflect.Indirect(reflect.New(s.Type()))
+		newS = reflect.New(s.Type())
 	} else {
-		newS = reflect.MakeSlice(s.Type(), s.Len(), s.Cap())
+		newS = wrapPtr(reflect.MakeSlice(s.Type(), s.Len(), s.Cap()))
 	}
 
 	w.cs = append(w.cs, newS)
@@ -491,4 +492,13 @@ func (w *walker) lock(v reflect.Value) {
 
 	locker.Lock()
 	w.locks[w.depth] = locker
+}
+
+func wrapPtr(v reflect.Value) reflect.Value {
+	if !v.IsValid() {
+		return v
+	}
+	vPtr := reflect.New(v.Type())
+	vPtr.Elem().Set(v)
+	return vPtr
 }
