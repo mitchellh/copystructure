@@ -157,15 +157,12 @@ func (w *walker) Exit(l reflectwalk.Location) error {
 
 	switch l {
 	case reflectwalk.Array:
-		// Arrays require pointer replacement because they're on the value
-		// stack as a pointer.
-		w.replacePointerMaybe()
-
 		fallthrough
 	case reflectwalk.Map:
 		fallthrough
 	case reflectwalk.Slice:
 		w.replacePointerMaybe()
+
 		// Pop map off our container
 		w.cs = w.cs[:len(w.cs)-1]
 	case reflectwalk.MapValue:
@@ -536,6 +533,8 @@ func (w *walker) lock(v reflect.Value) {
 	w.locks[w.depth] = locker
 }
 
+// wrapPtr is a helper that takes v and always make it *v. copystructure
+// stores things internally as pointers until the last moment before unwrapping
 func wrapPtr(v reflect.Value) reflect.Value {
 	if !v.IsValid() {
 		return v
