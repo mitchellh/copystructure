@@ -156,6 +156,12 @@ func (w *walker) Exit(l reflectwalk.Location) error {
 	}
 
 	switch l {
+	case reflectwalk.Array:
+		// Arrays require pointer replacement because they're on the value
+		// stack as a pointer.
+		w.replacePointerMaybe()
+
+		fallthrough
 	case reflectwalk.Map:
 		fallthrough
 	case reflectwalk.Slice:
@@ -174,6 +180,17 @@ func (w *walker) Exit(l reflectwalk.Location) error {
 			mv = reflect.Zero(m.Type().Elem())
 		}
 		m.SetMapIndex(mk, mv)
+	case reflectwalk.ArrayElem:
+		// Pop off the value and the index and set it on the array
+		v := w.valPop()
+		i := w.valPop().Interface().(int)
+		if v.IsValid() {
+			a := w.cs[len(w.cs)-1]
+			ae := a.Elem().Index(i) // storing array as pointer on stack - so need Elem() call
+			if ae.CanSet() {
+				ae.Set(v)
+			}
+		}
 	case reflectwalk.SliceElem:
 		// Pop off the value and the index and set it on the slice
 		v := w.valPop()
@@ -303,6 +320,31 @@ func (w *walker) SliceElem(i int, elem reflect.Value) error {
 	}
 
 	// We don't write the slice here because elem might still be
+	// arbitrarily complex. Just record the index and continue on.
+	w.valPush(reflect.ValueOf(i))
+
+	return nil
+}
+
+func (w *walker) Array(a reflect.Value) error {
+	if w.ignoring() {
+		return nil
+	}
+	w.lock(a)
+
+	newA := reflect.New(a.Type())
+
+	w.cs = append(w.cs, newA)
+	w.valPush(newA)
+	return nil
+}
+
+func (w *walker) ArrayElem(i int, elem reflect.Value) error {
+	if w.ignoring() {
+		return nil
+	}
+
+	// We don't write the array here because elem might still be
 	// arbitrarily complex. Just record the index and continue on.
 	w.valPush(reflect.ValueOf(i))
 
