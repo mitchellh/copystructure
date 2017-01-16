@@ -157,7 +157,10 @@ func (w *walker) Exit(l reflectwalk.Location) error {
 
 	switch l {
 	case reflectwalk.Array:
+		// Arrays require pointer replacement because they're on the value
+		// stack as a pointer.
 		w.replacePointerMaybe()
+
 		fallthrough
 	case reflectwalk.Map:
 		fallthrough
