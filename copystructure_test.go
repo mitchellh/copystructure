@@ -1015,3 +1015,69 @@ func TestCopy_nilPointerInSlice(t *testing.T) {
 		t.Fatalf("\n%#v\n\n%#v", v, result)
 	}
 }
+
+//-------------------------------------------------------------------
+// The tests below all tests various pointer cases around copying
+// a structure that uses a defined Copier. This was originally raised
+// around issue #26.
+
+func TestCopy_timePointer(t *testing.T) {
+	type T struct {
+		Value *time.Time
+	}
+
+	now := time.Now()
+	v := &T{
+		Value: &now,
+	}
+
+	result, err := Copy(v)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !reflect.DeepEqual(v, result) {
+		t.Fatalf("\n%#v\n\n%#v", v, result)
+	}
+}
+
+func TestCopy_timeNonPointer(t *testing.T) {
+	type T struct {
+		Value time.Time
+	}
+
+	v := &T{
+		Value: time.Now(),
+	}
+
+	result, err := Copy(v)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !reflect.DeepEqual(v, result) {
+		t.Fatalf("\n%#v\n\n%#v", v, result)
+	}
+}
+
+func TestCopy_timeDoublePointer(t *testing.T) {
+	type T struct {
+		Value **time.Time
+	}
+
+	now := time.Now()
+	nowP := &now
+	nowPP := &nowP
+	v := &T{
+		Value: nowPP,
+	}
+
+	result, err := Copy(v)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !reflect.DeepEqual(v, result) {
+		t.Fatalf("\n%#v\n\n%#v", v, result)
+	}
+}
