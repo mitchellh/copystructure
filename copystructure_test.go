@@ -6,6 +6,7 @@ import (
 	"sync"
 	"testing"
 	"time"
+	"unsafe"
 )
 
 func TestCopy_complex(t *testing.T) {
@@ -230,6 +231,33 @@ func TestCopy_structShallow(t *testing.T) {
 	value2 := "bar"
 	value2ptr := &value2
 	v := test{Value: "foo", Value2: value2ptr}
+
+	result, err := Copy(v)
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+	if !reflect.DeepEqual(result, v) {
+		t.Fatalf("bad: %#v", result)
+	}
+
+	vcopy := result.(test)
+	if vcopy.Value2 != v.Value2 {
+		t.Fatal("should shallow copy the pointer")
+	}
+}
+
+func TestCopy_structShallowWithUnsafe(t *testing.T) {
+	type nested struct {
+		v unsafe.Pointer
+	}
+
+	type test struct {
+		Value  string
+		Value2 *nested `copy:"shallow"`
+	}
+
+	value2 := &nested{}
+	v := test{Value: "foo", Value2: value2}
 
 	result, err := Copy(v)
 	if err != nil {

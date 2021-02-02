@@ -419,25 +419,28 @@ func (w *walker) StructField(f reflect.StructField, v reflect.Value) error {
 		return reflectwalk.SkipEntry
 	}
 
+	switch f.Tag.Get(tagKey) {
+	case "shallow":
+		// If we're shallow copying then assign the value directly to the
+		// struct and skip the entry.
+		if v.IsValid() {
+			s := w.cs[len(w.cs)-1]
+			sf := reflect.Indirect(s).FieldByName(f.Name)
+			if sf.CanSet() {
+				sf.Set(v)
+			}
+		}
+
+		return reflectwalk.SkipEntry
+
+	case "ignore":
+		// Do nothing
+		return reflectwalk.SkipEntry
+	}
+
 	// Push the field onto the stack, we'll handle it when we exit
 	// the struct field in Exit...
 	w.valPush(reflect.ValueOf(f))
-
-	// If we're shallow copying then push the value as-is onto the stack.
-	switch f.Tag.Get(tagKey) {
-	case "shallow":
-		w.valPush(v)
-
-		// set ignore depth one level deeper so we don't ignore the value
-		// we put on the stack but we do ignore diving into it.
-		w.ignoreDepth = w.depth + 1
-
-	case "ignore":
-		// Do nothing, we have to pop off our structfield so we undo any
-		// prior work in this func
-		w.valPop()
-		return reflectwalk.SkipEntry
-	}
 
 	return nil
 }
