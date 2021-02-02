@@ -245,6 +245,26 @@ func TestCopy_structShallow(t *testing.T) {
 	}
 }
 
+func TestCopy_structIgnore(t *testing.T) {
+	type test struct {
+		Value  string
+		Value2 *string `copy:"ignore"`
+	}
+
+	value2 := "bar"
+	value2ptr := &value2
+	v := test{Value: "foo", Value2: value2ptr}
+
+	result, err := Copy(v)
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+	vcopy := result.(test)
+	if vcopy.Value2 != nil {
+		t.Fatal("should be nil")
+	}
+}
+
 func TestCopy_structNested(t *testing.T) {
 	type TestInner struct{}
 

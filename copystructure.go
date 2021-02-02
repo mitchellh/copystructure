@@ -25,6 +25,9 @@ const tagKey = "copy"
 //
 // The available tag values are:
 //
+// * "ignore" - The field will be ignored, effectively resulting in it being
+//   assigned the zero value in the copy.
+//
 // * "shallow" - The field will be be shallow copied. This means that references
 //   values such as pointers, maps, slices, etc. will be directly assigned
 //   versus deep copied.
@@ -421,12 +424,19 @@ func (w *walker) StructField(f reflect.StructField, v reflect.Value) error {
 	w.valPush(reflect.ValueOf(f))
 
 	// If we're shallow copying then push the value as-is onto the stack.
-	if tv := f.Tag.Get(tagKey); tv == "shallow" {
+	switch f.Tag.Get(tagKey) {
+	case "shallow":
 		w.valPush(v)
 
 		// set ignore depth one level deeper so we don't ignore the value
 		// we put on the stack but we do ignore diving into it.
 		w.ignoreDepth = w.depth + 1
+
+	case "ignore":
+		// Do nothing, we have to pop off our structfield so we undo any
+		// prior work in this func
+		w.valPop()
+		return reflectwalk.SkipEntry
 	}
 
 	return nil
