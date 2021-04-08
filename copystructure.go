@@ -88,6 +88,7 @@ func (c Config) Copy(v interface{}) (interface{}, error) {
 	if c.Copiers == nil {
 		c.Copiers = Copiers
 	}
+	w.copiers = c.Copiers
 
 	err := reflectwalk.Walk(v, w)
 	if err != nil {
@@ -116,6 +117,7 @@ func ifaceKey(pointers, depth int) uint64 {
 type walker struct {
 	Result interface{}
 
+	copiers     map[reflect.Type]CopierFunc
 	depth       int
 	ignoreDepth int
 	vals        []reflect.Value
@@ -379,7 +381,7 @@ func (w *walker) Struct(s reflect.Value) error {
 	w.lock(s)
 
 	var v reflect.Value
-	if c, ok := Copiers[s.Type()]; ok {
+	if c, ok := w.copiers[s.Type()]; ok {
 		// We have a Copier for this struct, so we use that copier to
 		// get the copy, and we ignore anything deeper than this.
 		w.ignoreDepth = w.depth

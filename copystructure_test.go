@@ -1153,3 +1153,37 @@ func TestCopy_timeDoublePointer(t *testing.T) {
 		t.Fatalf("\n%#v\n\n%#v", v, result)
 	}
 }
+
+type nestedValue struct {
+	v string
+}
+
+func TestCopy_customCopierConfig(t *testing.T) {
+	type T struct {
+		Val *nestedValue
+	}
+
+	v := &T{
+		Val: &nestedValue{v: "original"},
+	}
+
+	cfg := Config{
+		Copiers: map[reflect.Type]CopierFunc{
+			reflect.TypeOf(nestedValue{}): customCopier,
+		},
+	}
+	result, err := cfg.Copy(v)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	copiedVal := result.(*T)
+
+	if !reflect.DeepEqual(v.Val.v, copiedVal.Val.v) {
+		t.Fatalf("\nexpected: %#v\ngiven: %#v", v.Val.v, copiedVal.Val.v)
+	}
+}
+
+func customCopier(v interface{}) (interface{}, error) {
+	return v.(nestedValue), nil
+}
