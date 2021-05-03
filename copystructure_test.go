@@ -1187,3 +1187,24 @@ func TestCopy_customCopierConfig(t *testing.T) {
 func customCopier(v interface{}) (interface{}, error) {
 	return v.(nestedValue), nil
 }
+
+func TestCopy_customCopierShallowValue(t *testing.T) {
+	type T struct{}
+	v := &T{}
+
+	cfg := Config{
+		ShallowCopiers: map[reflect.Type]struct{}{
+			reflect.TypeOf(T{}): struct{}{},
+		},
+	}
+	result, err := cfg.Copy(v)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	copiedVal := result.(*T)
+
+	if v != copiedVal {
+		t.Fatal("value not shallow copied")
+	}
+}
